@@ -27,6 +27,10 @@ pub enum Commands {
         /// Recursively index directories
         #[arg(short, long, default_value_t = true)]
         recursive: bool,
+
+        /// Disable progress bar (plain text output, useful for scripts/logs)
+        #[arg(long)]
+        no_progress: bool,
     },
 
     /// Search the knowledge base by meaning

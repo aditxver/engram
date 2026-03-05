@@ -18,7 +18,7 @@ const CHUNK_OVERLAP: usize = 200;
 // Public command handlers
 // ---------------------------------------------------------------------------
 
-pub fn add(paths: &[String], recursive: bool) -> Result<()> {
+pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
     let db_path = db_path()?;
 
     // Auto-initialize on first use
@@ -42,40 +42,101 @@ pub fn add(paths: &[String], recursive: bool) -> Result<()> {
         return Ok(());
     }
 
-    let bar = progress_bar(files.len() as u64, "Indexing");
+    let bar: Option<ProgressBar> = if no_progress {
+        None
+    } else {
+        let b = ProgressBar::new(files.len() as u64);
+        b.set_style(
+            ProgressStyle::with_template("{msg:40} [{bar:40}] {pos}/{len}")
+                .unwrap()
+                .progress_chars("=> "),
+        );
+        b.set_message("Indexing...");
+        Some(b)
+    };
+
     let mut added = 0usize;
     let mut skipped = 0usize;
+    let mut errors = 0usize;
 
     for path in &files {
-        bar.set_message(path.display().to_string());
+        if let Some(b) = &bar {
+            b.set_message(path.file_name().unwrap_or_default().to_string_lossy().to_string());
+        }
 
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                if no_progress { eprintln!("error reading {}: {e}", path.display()); }
+                errors += 1;
+                if let Some(b) = &bar { b.inc(1); }
+                continue;
+            }
+        };
+
         let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
         let path_str = path.to_string_lossy().to_string();
 
-        // Skip unchanged files
         if db.get_hash(&path_str)?.as_deref() == Some(&hash) {
+            if no_progress { println!("  unchanged  {path_str}"); }
             skipped += 1;
-            bar.inc(1);
+            if let Some(b) = &bar { b.inc(1); }
             continue;
         }
 
         let snippet = make_snippet(&content);
-        let doc_id = db.upsert_document(&path_str, &hash, &snippet)?;
+        let doc_id = match db.upsert_document(&path_str, &hash, &snippet) {
+            Ok(id) => id,
+            Err(e) => {
+                if no_progress { eprintln!("  error      {path_str}: {e:#}"); }
+                errors += 1;
+                if let Some(b) = &bar { b.inc(1); }
+                continue;
+            }
+        };
+
         let chunks = chunk_text(&content);
-        for chunk in &chunks {
-            let embedding = embed::embed(chunk, &provider)
-                .with_context(|| format!("Failed to embed {}", path.display()))?;
-            db.insert_chunk(doc_id, &embedding)?;
+        let mut chunk_ok = true;
+        for (i, chunk) in chunks.iter().enumerate() {
+            if no_progress {
+                print!("  indexing   {path_str} ({}/{}) ... ", i + 1, chunks.len());
+                let _ = std::io::stdout().flush();
+                // std::io::stdout is buffered; use Write trait
+                use std::io::Write;
+                let _ = std::io::stdout().flush();
+            }
+            let embedding = match embed::embed(chunk, &provider) {
+                Ok(v) => v,
+                Err(e) => {
+                    if no_progress { println!("embed error: {e:#}"); }
+                    chunk_ok = false;
+                    break;
+                }
+            };
+            if let Err(e) = db.insert_chunk(doc_id, &embedding) {
+                if no_progress { println!("insert error: {e:#}"); }
+                chunk_ok = false;
+                break;
+            }
+            if no_progress { println!("ok"); }
         }
 
-        added += 1;
-        bar.inc(1);
+        if chunk_ok {
+            added += 1;
+        } else {
+            errors += 1;
+        }
+        if let Some(b) = &bar { b.inc(1); }
     }
 
-    bar.finish_and_clear();
-    println!("✓ Indexed {added} files ({skipped} unchanged, {} total)", db.document_count()?);
+    if let Some(b) = &bar { b.finish_and_clear(); }
+
+    let total = db.document_count()?;
+    if errors > 0 {
+        println!("✓ Indexed {added} files ({skipped} unchanged, {errors} errors, {total} total)");
+    } else {
+        println!("✓ Indexed {added} files ({skipped} unchanged, {total} total)");
+    }
     Ok(())
 }
 
@@ -93,7 +154,7 @@ pub fn search(query: &str, limit: usize, show_path: bool) -> Result<()> {
     }
 
     for (i, r) in results.iter().enumerate() {
-        println!("{:2}. {} (score: {:.3})", i + 1, r.path, 1.0 - r.distance);
+        println!("{:2}. {} (dist: {:.3})", i + 1, r.path, r.distance);
         if !show_path {
             println!("    {}\n", r.snippet.replace('\n', " "));
         }
@@ -129,7 +190,7 @@ pub fn rebuild() -> Result<()> {
     drop(db);
 
     let path_strings: Vec<String> = paths;
-    add(&path_strings, false)
+    add(&path_strings, false, false)
 }
 
 pub fn status() -> Result<()> {
@@ -213,8 +274,18 @@ fn is_supported(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+/// Round `idx` down to the nearest valid UTF-8 char boundary.
+fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
+    idx = idx.min(s.len());
+    while idx > 0 && !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    idx
+}
+
 /// Split text into overlapping chunks for embedding.
 /// Tries to split on paragraph boundaries where possible.
+/// All slicing uses char-boundary-safe indices.
 fn chunk_text(content: &str) -> Vec<String> {
     let content = content.trim();
     if content.len() <= CHUNK_SIZE {
@@ -225,25 +296,32 @@ fn chunk_text(content: &str) -> Vec<String> {
     let mut start = 0;
 
     while start < content.len() {
-        let end = (start + CHUNK_SIZE).min(content.len());
+        let end = floor_char_boundary(content, start + CHUNK_SIZE);
 
         // Try to find a paragraph break near the end to split cleanly
         let split_at = if end < content.len() {
             content[start..end]
                 .rfind("\n\n")
-                .map(|i| start + i + 2)
+                .map(|i| floor_char_boundary(content, start + i + 2))
                 .unwrap_or(end)
         } else {
             end
         };
 
+        // Guard: split_at must be > start to make forward progress
+        if split_at <= start {
+            chunks.push(content[start..].to_string());
+            break;
+        }
+
         chunks.push(content[start..split_at].to_string());
 
-        // Advance with overlap so context isn't lost at boundaries
-        start = split_at.saturating_sub(CHUNK_OVERLAP);
-        if start >= split_at {
-            break; // safety: avoid infinite loop
+        // Advance with overlap
+        let next = floor_char_boundary(content, split_at.saturating_sub(CHUNK_OVERLAP));
+        if next <= start {
+            break;
         }
+        start = next;
     }
 
     chunks
@@ -258,13 +336,4 @@ fn make_snippet(content: &str) -> String {
     }
 }
 
-fn progress_bar(len: u64, msg: &str) -> ProgressBar {
-    let bar = ProgressBar::new(len);
-    bar.set_style(
-        ProgressStyle::with_template("{msg:30} [{bar:40}] {pos}/{len}")
-            .unwrap()
-            .progress_chars("=> "),
-    );
-    bar.set_message(msg.to_string());
-    bar
-}
+

@@ -52,7 +52,13 @@ fn embed_openai(text: &str) -> Result<Vec<f32>> {
         "https://api.openai.com/v1"
     };
 
-    let resp: serde_json::Value = ureq::post(&format!("{base_url}/embeddings"))
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(10))
+        .timeout_read(std::time::Duration::from_secs(30))
+        .build();
+
+    let resp: serde_json::Value = agent
+        .post(&format!("{base_url}/embeddings"))
         .set("Authorization", &format!("Bearer {api_key}"))
         .send_json(serde_json::json!({
             "model": "text-embedding-3-small",
@@ -64,8 +70,15 @@ fn embed_openai(text: &str) -> Result<Vec<f32>> {
 }
 
 fn embed_ollama(text: &str, base_url: &str) -> Result<Vec<f32>> {
-    // Use /api/embeddings (compatible with all Ollama versions) with "prompt" key
-    let resp: serde_json::Value = ureq::post(&format!("{base_url}/api/embeddings"))
+    // Use /api/embeddings (compatible with all Ollama versions) with "prompt" key.
+    // Explicit timeouts: connect 5s, read 60s (large files on CPU can take a few seconds).
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(5))
+        .timeout_read(std::time::Duration::from_secs(60))
+        .build();
+
+    let resp: serde_json::Value = agent
+        .post(&format!("{base_url}/api/embeddings"))
         .send_json(serde_json::json!({
             "model": "nomic-embed-text",
             "prompt": text,
@@ -95,7 +108,12 @@ pub fn detect_provider() -> Provider {
     let base_url = std::env::var("OLLAMA_HOST")
         .unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    if ureq::get(&format!("{base_url}/api/tags"))
+    let probe = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(2))
+        .timeout_read(std::time::Duration::from_secs(2))
+        .build();
+
+    if probe.get(&format!("{base_url}/api/tags"))
         .call()
         .map(|r| r.status() == 200)
         .unwrap_or(false)
