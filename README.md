@@ -1,6 +1,8 @@
 # engram
 
-> Semantic memory for AI agents. Index your knowledge base, search by meaning — not keywords. Single binary, no server required.
+> Give your agents a brain.
+
+Semantic memory for AI agents. Index your knowledge base, search by meaning — not keywords. Single binary, no server required.
 
 AI agents are only as good as what they can recall. **engram** gives agents persistent, searchable memory over any collection of plain text and markdown files — without a database server, cloud service, or complex infrastructure.
 
