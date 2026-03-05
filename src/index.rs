@@ -9,6 +9,10 @@ use crate::embed::{self, Provider};
 
 const SUPPORTED_EXTENSIONS: &[&str] = &["md", "txt", "rst", "org", "adoc"];
 const SNIPPET_LEN: usize = 300;
+/// Maximum characters per chunk (~1500 tokens, well within nomic-embed-text's 8192 limit)
+const CHUNK_SIZE: usize = 6000;
+/// Overlap between chunks so context isn't lost at boundaries
+const CHUNK_OVERLAP: usize = 200;
 
 // ---------------------------------------------------------------------------
 // Public command handlers
@@ -59,9 +63,12 @@ pub fn add(paths: &[String], recursive: bool) -> Result<()> {
 
         let snippet = make_snippet(&content);
         let doc_id = db.upsert_document(&path_str, &hash, &snippet)?;
-        let embedding = embed::embed(&content, &provider)
-            .with_context(|| format!("Failed to embed {}", path.display()))?;
-        db.insert_chunk(doc_id, &embedding)?;
+        let chunks = chunk_text(&content);
+        for chunk in &chunks {
+            let embedding = embed::embed(chunk, &provider)
+                .with_context(|| format!("Failed to embed {}", path.display()))?;
+            db.insert_chunk(doc_id, &embedding)?;
+        }
 
         added += 1;
         bar.inc(1);
@@ -204,6 +211,42 @@ fn is_supported(path: &Path) -> bool {
         .and_then(|e| e.to_str())
         .map(|e| SUPPORTED_EXTENSIONS.contains(&e))
         .unwrap_or(false)
+}
+
+/// Split text into overlapping chunks for embedding.
+/// Tries to split on paragraph boundaries where possible.
+fn chunk_text(content: &str) -> Vec<String> {
+    let content = content.trim();
+    if content.len() <= CHUNK_SIZE {
+        return vec![content.to_string()];
+    }
+
+    let mut chunks = Vec::new();
+    let mut start = 0;
+
+    while start < content.len() {
+        let end = (start + CHUNK_SIZE).min(content.len());
+
+        // Try to find a paragraph break near the end to split cleanly
+        let split_at = if end < content.len() {
+            content[start..end]
+                .rfind("\n\n")
+                .map(|i| start + i + 2)
+                .unwrap_or(end)
+        } else {
+            end
+        };
+
+        chunks.push(content[start..split_at].to_string());
+
+        // Advance with overlap so context isn't lost at boundaries
+        start = split_at.saturating_sub(CHUNK_OVERLAP);
+        if start >= split_at {
+            break; // safety: avoid infinite loop
+        }
+    }
+
+    chunks
 }
 
 fn make_snippet(content: &str) -> String {

@@ -64,17 +64,17 @@ fn embed_openai(text: &str) -> Result<Vec<f32>> {
 }
 
 fn embed_ollama(text: &str, base_url: &str) -> Result<Vec<f32>> {
-    let resp: serde_json::Value = ureq::post(&format!("{base_url}/api/embed"))
+    // Use /api/embeddings (compatible with all Ollama versions) with "prompt" key
+    let resp: serde_json::Value = ureq::post(&format!("{base_url}/api/embeddings"))
         .send_json(serde_json::json!({
             "model": "nomic-embed-text",
-            "input": text,
+            "prompt": text,
         }))?
         .into_json()?;
 
-    // Ollama embed API returns { "embeddings": [[...]] }
-    resp["embeddings"][0]
+    resp["embedding"]
         .as_array()
-        .context("No embeddings in Ollama response")?
+        .context("No embedding in Ollama response")?
         .iter()
         .map(|v| v.as_f64().map(|f| f as f32).context("Non-numeric embedding value"))
         .collect()
