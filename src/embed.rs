@@ -4,7 +4,7 @@
 /// model for both indexing and querying. Switching models requires a full
 /// rebuild. The provider is stored in the index metadata so engram can
 /// detect mismatches and prompt you to rebuild.
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 pub const DIMS_OPENAI_SMALL: usize = 1536;

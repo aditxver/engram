@@ -166,7 +166,7 @@ fn require_db() -> Result<PathBuf> {
 
 fn load_provider(db: &Db) -> Result<Provider> {
     let name = db.get_meta("provider")?.unwrap_or_default();
-    let dims: usize = db.get_meta("dims")?.unwrap_or_default().parse().unwrap_or(1536);
+    let _dims: usize = db.get_meta("dims")?.unwrap_or_default().parse().unwrap_or(1536);
 
     Ok(match name.as_str() {
         "openai/text-embedding-3-small" => Provider::OpenAiSmall,

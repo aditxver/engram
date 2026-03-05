@@ -14,13 +14,16 @@ pub struct Db {
 
 impl Db {
     pub fn open(db_path: &Path) -> Result<Self> {
+        // Register sqlite-vec as a global auto-extension before opening any connection.
+        // Safe to call multiple times — SQLite deduplicates by function pointer.
+        unsafe {
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+                sqlite_vec::sqlite3_vec_init as *const (),
+            )));
+        }
+
         let conn = Connection::open(db_path)
             .with_context(|| format!("Failed to open database at {}", db_path.display()))?;
-
-        // Load the sqlite-vec extension
-        unsafe {
-            sqlite_vec::load(&conn).context("Failed to load sqlite-vec extension")?;
-        }
 
         Ok(Db { conn })
     }
