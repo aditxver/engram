@@ -32,7 +32,11 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
     if is_new {
         let provider = embed::detect_provider();
         db.init(provider.dims(), provider.name())?;
-        println!("✓ Created index at {} (provider: {})", db_path.display(), provider.name());
+        println!(
+            "✓ Created index at {} (provider: {})",
+            db_path.display(),
+            provider.name()
+        );
     }
     let provider = load_provider(&db)?;
 
@@ -61,15 +65,24 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
 
     for path in &files {
         if let Some(b) = &bar {
-            b.set_message(path.file_name().unwrap_or_default().to_string_lossy().to_string());
+            b.set_message(
+                path.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+            );
         }
 
         let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
             Err(e) => {
-                if no_progress { eprintln!("error reading {}: {e}", path.display()); }
+                if no_progress {
+                    eprintln!("error reading {}: {e}", path.display());
+                }
                 errors += 1;
-                if let Some(b) = &bar { b.inc(1); }
+                if let Some(b) = &bar {
+                    b.inc(1);
+                }
                 continue;
             }
         };
@@ -78,9 +91,13 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
         let path_str = path.to_string_lossy().to_string();
 
         if db.get_hash(&path_str)?.as_deref() == Some(&hash) {
-            if no_progress { println!("  unchanged  {path_str}"); }
+            if no_progress {
+                println!("  unchanged  {path_str}");
+            }
             skipped += 1;
-            if let Some(b) = &bar { b.inc(1); }
+            if let Some(b) = &bar {
+                b.inc(1);
+            }
             continue;
         }
 
@@ -88,9 +105,13 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
         let doc_id = match db.upsert_document(&path_str, &hash, &snippet) {
             Ok(id) => id,
             Err(e) => {
-                if no_progress { eprintln!("  error      {path_str}: {e:#}"); }
+                if no_progress {
+                    eprintln!("  error      {path_str}: {e:#}");
+                }
                 errors += 1;
-                if let Some(b) = &bar { b.inc(1); }
+                if let Some(b) = &bar {
+                    b.inc(1);
+                }
                 continue;
             }
         };
@@ -108,17 +129,23 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
             let embedding = match embed::embed(chunk, &provider) {
                 Ok(v) => v,
                 Err(e) => {
-                    if no_progress { println!("embed error: {e:#}"); }
+                    if no_progress {
+                        println!("embed error: {e:#}");
+                    }
                     chunk_ok = false;
                     break;
                 }
             };
             if let Err(e) = db.insert_chunk(doc_id, &embedding) {
-                if no_progress { println!("insert error: {e:#}"); }
+                if no_progress {
+                    println!("insert error: {e:#}");
+                }
                 chunk_ok = false;
                 break;
             }
-            if no_progress { println!("ok"); }
+            if no_progress {
+                println!("ok");
+            }
         }
 
         if chunk_ok {
@@ -126,10 +153,14 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
         } else {
             errors += 1;
         }
-        if let Some(b) = &bar { b.inc(1); }
+        if let Some(b) = &bar {
+            b.inc(1);
+        }
     }
 
-    if let Some(b) = &bar { b.finish_and_clear(); }
+    if let Some(b) = &bar {
+        b.finish_and_clear();
+    }
 
     let total = db.document_count()?;
     if errors > 0 {
@@ -215,6 +246,9 @@ pub fn status() -> Result<()> {
 // ---------------------------------------------------------------------------
 
 fn db_path() -> Result<PathBuf> {
+    if let Ok(p) = std::env::var("ENGRAM_DB_PATH") {
+        return Ok(PathBuf::from(p));
+    }
     let home = dirs::home_dir().context("Cannot determine home directory")?;
     Ok(home.join(".engram").join("index.db"))
 }
@@ -229,7 +263,11 @@ fn require_db() -> Result<PathBuf> {
 
 fn load_provider(db: &Db) -> Result<Provider> {
     let name = db.get_meta("provider")?.unwrap_or_default();
-    let _dims: usize = db.get_meta("dims")?.unwrap_or_default().parse().unwrap_or(1536);
+    let _dims: usize = db
+        .get_meta("dims")?
+        .unwrap_or_default()
+        .parse()
+        .unwrap_or(1536);
 
     Ok(match name.as_str() {
         "openai/text-embedding-3-small" => Provider::OpenAiSmall,
@@ -241,7 +279,10 @@ fn load_provider(db: &Db) -> Result<Provider> {
         _ => {
             // Try to auto-detect and warn if it differs
             let detected = embed::detect_provider();
-            eprintln!("warning: unknown provider '{name}', using detected: {}", detected.name());
+            eprintln!(
+                "warning: unknown provider '{name}', using detected: {}",
+                detected.name()
+            );
             detected
         }
     })
@@ -336,5 +377,3 @@ fn make_snippet(content: &str) -> String {
         format!("{}…", &trimmed[..boundary])
     }
 }
-
-

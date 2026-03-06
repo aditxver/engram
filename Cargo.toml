@@ -8,6 +8,10 @@ repository = "https://github.com/pureclaw/engram"
 keywords = ["knowledge-base", "search", "embeddings", "sqlite", "cli"]
 categories = ["command-line-utilities"]
 
+[lib]
+name = "engram"
+path = "src/lib.rs"
+
 [[bin]]
 name = "engram"
 path = "src/main.rs"
@@ -43,6 +47,9 @@ indicatif = "0.17"
 
 # Hashing for change detection
 blake3 = "1"
+
+[dev-dependencies]
+tempfile = "3"
 
 [profile.release]
 lto = true

@@ -35,10 +35,37 @@ impl Provider {
 }
 
 pub fn embed(text: &str, provider: &Provider) -> Result<Vec<f32>> {
+    // When ENGRAM_TEST_EMBED=1, skip HTTP and return a deterministic mock vector
+    if std::env::var("ENGRAM_TEST_EMBED").as_deref() == Ok("1") {
+        return Ok(mock_embedding(text));
+    }
+
     match provider {
         Provider::OpenAiSmall => embed_openai(text),
         Provider::OllamaNomic { base_url } => embed_ollama(text, base_url),
     }
+}
+
+/// Deterministic 768-dim embedding from blake3 hash of input text.
+///
+/// Produces different vectors for different inputs without any HTTP calls.
+/// Activated via `ENGRAM_TEST_EMBED=1` env var so tests can run without Ollama.
+pub fn mock_embedding(text: &str) -> Vec<f32> {
+    let hash = blake3::hash(text.as_bytes());
+    let seed = hash.as_bytes();
+    let mut out = Vec::with_capacity(DIMS_NOMIC);
+    // Expand 32-byte hash into 768 floats using iterative blake3 hashing
+    let mut block = *seed;
+    for _ in 0..(DIMS_NOMIC / 8) {
+        block = *blake3::hash(&block).as_bytes();
+        for chunk in block.chunks_exact(4) {
+            let bits = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            // Map to [-1, 1] range
+            out.push((bits as f32 / u32::MAX as f32) * 2.0 - 1.0);
+        }
+    }
+    out.truncate(DIMS_NOMIC);
+    out
 }
 
 fn embed_openai(text: &str) -> Result<Vec<f32>> {
@@ -89,7 +116,11 @@ fn embed_ollama(text: &str, base_url: &str) -> Result<Vec<f32>> {
         .as_array()
         .context("No embedding in Ollama response")?
         .iter()
-        .map(|v| v.as_f64().map(|f| f as f32).context("Non-numeric embedding value"))
+        .map(|v| {
+            v.as_f64()
+                .map(|f| f as f32)
+                .context("Non-numeric embedding value")
+        })
         .collect()
 }
 
@@ -98,22 +129,34 @@ fn parse_embedding(resp: &serde_json::Value) -> Result<Vec<f32>> {
         .as_array()
         .context("No embedding in API response")?
         .iter()
-        .map(|v| v.as_f64().map(|f| f as f32).context("Non-numeric embedding value"))
+        .map(|v| {
+            v.as_f64()
+                .map(|f| f as f32)
+                .context("Non-numeric embedding value")
+        })
         .collect()
 }
 
 /// Detect provider from environment. Prefers Ollama (local/private) when available.
 pub fn detect_provider() -> Provider {
+    // In test mode, return Ollama provider without probing the network
+    if std::env::var("ENGRAM_TEST_EMBED").as_deref() == Ok("1") {
+        return Provider::OllamaNomic {
+            base_url: "http://localhost:11434".to_string(),
+        };
+    }
+
     // Check if local Ollama is up
-    let base_url = std::env::var("OLLAMA_HOST")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let base_url =
+        std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     let probe = ureq::AgentBuilder::new()
         .timeout_connect(std::time::Duration::from_secs(2))
         .timeout_read(std::time::Duration::from_secs(2))
         .build();
 
-    if probe.get(&format!("{base_url}/api/tags"))
+    if probe
+        .get(&format!("{base_url}/api/tags"))
         .call()
         .map(|r| r.status() == 200)
         .unwrap_or(false)

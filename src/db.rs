@@ -17,7 +17,14 @@ impl Db {
         // Register sqlite-vec as a global auto-extension before opening any connection.
         // Safe to call multiple times — SQLite deduplicates by function pointer.
         unsafe {
-            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute::<
+                *const (),
+                unsafe extern "C" fn(
+                    *mut rusqlite::ffi::sqlite3,
+                    *mut *const i8,
+                    *const rusqlite::ffi::sqlite3_api_routines,
+                ) -> i32,
+            >(
                 sqlite_vec::sqlite3_vec_init as *const (),
             )));
         }
@@ -29,8 +36,9 @@ impl Db {
     }
 
     pub fn init(&self, dims: usize, provider_name: &str) -> Result<()> {
-        self.conn.execute_batch(&format!(
-            "
+        self.conn
+            .execute_batch(&format!(
+                "
             CREATE TABLE IF NOT EXISTS documents (
                 id      INTEGER PRIMARY KEY,
                 path    TEXT NOT NULL UNIQUE,
@@ -52,8 +60,8 @@ impl Db {
             INSERT OR IGNORE INTO meta (key, value) VALUES ('provider', '{provider_name}');
             INSERT OR IGNORE INTO meta (key, value) VALUES ('dims', '{dims}');
             "
-        ))
-        .context("Failed to initialize schema")
+            ))
+            .context("Failed to initialize schema")
     }
 
     pub fn get_meta(&self, key: &str) -> Result<Option<String>> {
@@ -87,20 +95,15 @@ impl Db {
         )?;
 
         // Remove old embedding chunks for this document
-        self.conn.execute(
-            "DELETE FROM chunks WHERE document_id = ?1",
-            params![id],
-        )?;
+        self.conn
+            .execute("DELETE FROM chunks WHERE document_id = ?1", params![id])?;
 
         Ok(id)
     }
 
     pub fn insert_chunk(&self, document_id: i64, embedding: &[f32]) -> Result<()> {
         // sqlite-vec stores vectors as raw bytes (little-endian f32)
-        let bytes: Vec<u8> = embedding
-            .iter()
-            .flat_map(|f| f.to_le_bytes())
-            .collect();
+        let bytes: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
 
         self.conn.execute(
             "INSERT INTO chunks (document_id, embedding) VALUES (?1, ?2)",
@@ -148,8 +151,10 @@ impl Db {
             .ok();
 
         if let Some(id) = id {
-            self.conn.execute("DELETE FROM chunks WHERE document_id = ?1", params![id])?;
-            self.conn.execute("DELETE FROM documents WHERE id = ?1", params![id])?;
+            self.conn
+                .execute("DELETE FROM chunks WHERE document_id = ?1", params![id])?;
+            self.conn
+                .execute("DELETE FROM documents WHERE id = ?1", params![id])?;
             Ok(true)
         } else {
             Ok(false)
@@ -157,11 +162,9 @@ impl Db {
     }
 
     pub fn document_count(&self) -> Result<usize> {
-        let count: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM documents",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
         Ok(count as usize)
     }
 

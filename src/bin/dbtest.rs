@@ -4,9 +4,14 @@ fn main() {
 
     println!("1. registering sqlite-vec...");
     unsafe {
-        sqlite3_auto_extension(Some(std::mem::transmute(
-            sqlite_vec::sqlite3_vec_init as *const (),
-        )));
+        sqlite3_auto_extension(Some(std::mem::transmute::<
+            *const (),
+            unsafe extern "C" fn(
+                *mut rusqlite::ffi::sqlite3,
+                *mut *const i8,
+                *const rusqlite::ffi::sqlite3_api_routines,
+            ) -> i32,
+        >(sqlite_vec::sqlite3_vec_init as *const ())));
     }
 
     println!("2. opening db...");
@@ -21,16 +26,20 @@ fn main() {
              document_id INTEGER,
              embedding FLOAT[768]
          );",
-    ).unwrap();
+    )
+    .unwrap();
 
     println!("4. inserting document...");
     conn.execute(
         "INSERT INTO documents (path, hash, snippet, indexed_at) VALUES (?1,?2,?3,?4)",
         rusqlite::params!["test.md", "abc123", "test snippet", 0i64],
-    ).unwrap();
-    let doc_id: i64 = conn.query_row(
-        "SELECT id FROM documents WHERE path='test.md'", [], |r| r.get(0)
-    ).unwrap();
+    )
+    .unwrap();
+    let doc_id: i64 = conn
+        .query_row("SELECT id FROM documents WHERE path='test.md'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     println!("   doc_id = {doc_id}");
 
     // Insert first chunk
@@ -40,7 +49,8 @@ fn main() {
     conn.execute(
         "INSERT INTO chunks (document_id, embedding) VALUES (?1, ?2)",
         rusqlite::params![doc_id, b1],
-    ).unwrap();
+    )
+    .unwrap();
     println!("   chunk 1 ok");
 
     // Insert second chunk (same doc)
@@ -50,7 +60,8 @@ fn main() {
     conn.execute(
         "INSERT INTO chunks (document_id, embedding) VALUES (?1, ?2)",
         rusqlite::params![doc_id, b2],
-    ).unwrap();
+    )
+    .unwrap();
     println!("   chunk 2 ok");
 
     // Query
@@ -59,10 +70,11 @@ fn main() {
     let mut stmt = conn.prepare(
         "SELECT document_id, distance FROM chunks WHERE embedding MATCH ?1 AND k=5 ORDER BY distance"
     ).unwrap();
-    let rows: Vec<(i64, f32)> = stmt.query_map(
-        rusqlite::params![query],
-        |r| Ok((r.get(0)?, r.get(1)?))
-    ).unwrap().map(|r| r.unwrap()).collect();
+    let rows: Vec<(i64, f32)> = stmt
+        .query_map(rusqlite::params![query], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .map(|r| r.unwrap())
+        .collect();
     println!("   results: {rows:?}");
 
     println!("ALL DONE");
