@@ -40,6 +40,11 @@ pub fn add(paths: &[String], recursive: bool, no_progress: bool) -> Result<()> {
     }
     let provider = load_provider(&db)?;
 
+    // Preflight: verify the embedding provider is reachable and the model is
+    // available before processing any files. This catches configuration
+    // problems (e.g. missing Ollama model) early with a clear error.
+    embed::embed("preflight check", &provider).context("Embedding provider is not available")?;
+
     let files = collect_files(paths, recursive);
     if files.is_empty() {
         println!("No supported files found.");
