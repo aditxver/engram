@@ -32,6 +32,18 @@ fn run(db_dir: &TempDir, args: &[&str]) -> std::process::Output {
         .expect("failed to execute engram")
 }
 
+/// Run engram with the embed-fail env var set, simulating a missing Ollama model.
+fn run_with_embed_fail(db_dir: &TempDir, args: &[&str]) -> std::process::Output {
+    let db_path = db_dir.path().join("index.db");
+    Command::new(engram_bin())
+        .args(args)
+        .env("ENGRAM_TEST_EMBED", "1")
+        .env("ENGRAM_TEST_EMBED_FAIL", "1")
+        .env("ENGRAM_DB_PATH", db_path.to_str().unwrap())
+        .output()
+        .expect("failed to execute engram")
+}
+
 /// Helper: get stdout as String.
 fn stdout(output: &std::process::Output) -> String {
     String::from_utf8_lossy(&output.stdout).to_string()
@@ -308,5 +320,50 @@ fn readd_changed_file_reindexes() {
     assert!(
         text.contains("Indexed 1 files") && text.contains("0 unchanged"),
         "expected re-index, got: {text}"
+    );
+}
+
+#[test]
+fn add_fails_when_model_missing() {
+    let db = TempDir::new().unwrap();
+    let data = TempDir::new().unwrap();
+    let file = data.path().join("test.md");
+    fs::write(&file, "Some content to index.").unwrap();
+
+    let out = run_with_embed_fail(&db, &["add", "--no-progress", file.to_str().unwrap()]);
+    assert!(
+        !out.status.success(),
+        "expected non-zero exit, got success. stdout: {}",
+        stdout(&out)
+    );
+    let err = stderr(&out);
+    assert!(
+        err.contains("ollama pull nomic-embed-text"),
+        "expected actionable error message, got: {err}"
+    );
+}
+
+#[test]
+fn search_fails_when_model_missing() {
+    let db = TempDir::new().unwrap();
+    let data = TempDir::new().unwrap();
+    let file = data.path().join("indexed.md");
+    fs::write(&file, "A document about memory and semantic search.").unwrap();
+
+    // Index successfully with mock embeddings (no fail mode)
+    let out = run(&db, &["add", "--no-progress", file.to_str().unwrap()]);
+    assert!(out.status.success(), "setup failed: {}", stderr(&out));
+
+    // Search with embed-fail mode — should fail with actionable error
+    let out = run_with_embed_fail(&db, &["search", "memory"]);
+    assert!(
+        !out.status.success(),
+        "expected non-zero exit, got success. stdout: {}",
+        stdout(&out)
+    );
+    let err = stderr(&out);
+    assert!(
+        err.contains("ollama pull nomic-embed-text"),
+        "expected actionable error message, got: {err}"
     );
 }

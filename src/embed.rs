@@ -35,6 +35,14 @@ impl Provider {
 }
 
 pub fn embed(text: &str, provider: &Provider) -> Result<Vec<f32>> {
+    // When ENGRAM_TEST_EMBED_FAIL=1, simulate a missing-model error
+    if std::env::var("ENGRAM_TEST_EMBED_FAIL").as_deref() == Ok("1") {
+        anyhow::bail!(
+            "Ollama model 'nomic-embed-text' is not installed. \
+             Run `ollama pull nomic-embed-text` and try again."
+        );
+    }
+
     // When ENGRAM_TEST_EMBED=1, skip HTTP and return a deterministic mock vector
     if std::env::var("ENGRAM_TEST_EMBED").as_deref() == Ok("1") {
         return Ok(mock_embedding(text));
