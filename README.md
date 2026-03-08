@@ -7,68 +7,66 @@ Semantic memory for AI agents. Index your knowledge base, search by meaning — 
 AI agents are only as good as what they can recall. **engram** gives agents persistent, searchable memory over any collection of plain text and markdown files — without a database server, cloud service, or complex infrastructure.
 
 ```
-$ engram search "why does my container keep restarting"
- 1. docs/ops/pod-oom-crash-loop.md        (dist: 15.2)
-    ...set resource requests and limits; the kernel OOMKills the process when...
+$ engram search "something warm and filling for a cold night"
+ 1. recipes/tuscan-white-bean-soup.md     (dist: 14.8)
+    ...slow-simmered cannellini beans with pancetta and kale, serve with crusty bread...
 
- 2. docs/ops/k8s-node-pressure.md         (dist: 17.1)
-    ...node memory pressure causes the kubelet to evict pods without limits set...
+ 2. recipes/french-onion-soup.md          (dist: 15.6)
+    ...caramelized onions need patience — at least 45 minutes on low heat...
 ```
 
 Give an agent access to `engram search` and it can retrieve the right context from thousands of documents in milliseconds — without stuffing everything into the prompt.
 
 ## Keyword search vs. semantic search
 
-Say you have a runbook note about a Kubernetes issue:
+Say you keep a folder of recipe notes:
 
 ```markdown
-# pod-oom-crash-loop.md
+# tuscan-white-bean-soup.md
 
-The container is being OOMKilled by the kubelet. Resource limits are not
-set, so the pod gets scheduled on nodes without enough headroom and the
-kernel terminates the process when memory pressure spikes.
+Slow-simmer cannellini beans with pancetta, kale, and a parmesan rind
+in chicken stock. Needs at least 90 minutes for the beans to turn creamy.
+Season aggressively at the end — beans soak up salt.
 
-Fix: add resource requests and limits to the deployment manifest. Set
-requests.memory to the p50 observed usage and limits.memory to the p99.
-Use VPA in recommendation mode to calibrate initial values before
-committing to hard limits.
+Serve with thick crusty bread. Leftovers get better overnight as the
+beans release more starch and the broth thickens.
 ```
 
-Grep works if you remember the right words:
+Searching for a specific word works fine:
 
 ```
-$ grep -rl "OOMKilled\|resource limits\|kubelet" docs/
-docs/ops/pod-oom-crash-loop.md
+$ grep -rl "cannellini" recipes/
+recipes/tuscan-white-bean-soup.md
 ```
 
-But natural language draws a blank:
+But searching by feeling draws a blank:
 
 ```
-$ grep -rl "container keeps dying" docs/
+$ grep -rl "something warm and filling" recipes/
 (no matches)
 ```
 
 engram finds it — the meaning matches even though none of the words do:
 
 ```
-$ engram search "container keeps dying after a few minutes" --limit 5
- 1. docs/ops/pod-oom-crash-loop.md         (dist: 15.2)
-    ...the kernel terminates the process when memory pressure spikes...
+$ engram search "something warm and filling for a cold night" --limit 5
+ 1. recipes/tuscan-white-bean-soup.md      (dist: 14.8)
+    ...slow-simmer cannellini beans with pancetta, kale, and a parmesan rind...
 
- 2. docs/ops/k8s-node-pressure.md          (dist: 16.8)
-    ...kubelet evicts pods that exceed their memory footprint...
+ 2. recipes/french-onion-soup.md           (dist: 15.6)
+    ...caramelized onions need patience — at least 45 minutes on low heat...
 
- 3. docs/ops/docker-healthcheck-tuning.md  (dist: 18.1)
-    ...increase the start_period before the health check begins firing...
+ 3. recipes/braised-short-ribs.md          (dist: 16.2)
+    ...low and slow in red wine, the collagen breaks down into silky sauce...
 
- 4. docs/ops/cgroup-limits.md              (dist: 18.4)
-    ...cgroup v2 memory.max enforcement kills processes that exceed the limit...
+ 4. recipes/roasted-tomato-lentil-soup.md  (dist: 17.0)
+    ...blended until smooth, drizzle with yogurt and crispy chickpeas...
 
- 5. docs/architecture/service-sizing.md    (dist: 19.2)
-    ...right-sizing services reduces both cost and crash-loop frequency...
+ 5. recipes/mushroom-risotto.md            (dist: 17.9)
+    ...stir constantly; the starch is what makes it creamy, not the butter...
 ```
 
-Lower distance = stronger match. Results are ranked by semantic similarity across your entire knowledge base — without a server, without a cloud API, and without knowing ahead of time which words your documents use.
+Lower distance = stronger match. Results are ranked by semantic similarity across your entire collection — without a server, without a cloud API, and without knowing ahead of time which words your notes use.
 
 ## Why engram for agents?
 
@@ -94,7 +92,7 @@ Lower distance = stronger match. Results are ranked by semantic similarity acros
 # From source (requires Rust 1.75+)
 cargo install --git https://github.com/pureclaw/engram
 
-# Pre-built binaries (coming soon)
+# Pre-built binaries
 # https://github.com/pureclaw/engram/releases
 ```
 
@@ -105,7 +103,7 @@ cargo install --git https://github.com/pureclaw/engram
 engram add ~/notes
 
 # Search by meaning
-engram search "how do I configure connection pooling for high throughput"
+engram search "something warm and comforting for a cold night"
 
 # Check what's indexed
 engram status
@@ -117,7 +115,7 @@ engram is designed to be called as a tool from agent systems (OpenClaw, LangChai
 
 ```bash
 # Agent retrieves relevant context before answering
-engram search "$QUERY" --limit 5
+engram search "$USER_QUESTION" --limit 5
 
 # Agent indexes a new document after capturing knowledge
 engram add ~/notes/new-runbook.md
