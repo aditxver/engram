@@ -8,7 +8,7 @@ fn main() {
             *const (),
             unsafe extern "C" fn(
                 *mut rusqlite::ffi::sqlite3,
-                *mut *const i8,
+                *mut *const std::ffi::c_char,
                 *const rusqlite::ffi::sqlite3_api_routines,
             ) -> i32,
         >(sqlite_vec::sqlite3_vec_init as *const ())));
