@@ -123,8 +123,19 @@ fn embed_ollama(text: &str, base_url: &str) -> Result<Vec<f32>> {
                 })
                 .collect();
         }
-        Err(ureq::Error::Status(404, _)) => {
-            // Fall through to legacy endpoint
+        Err(ureq::Error::Status(404, resp)) => {
+            // Check if this is a model-not-found error vs endpoint-not-found.
+            // Ollama returns {"error":"model \"X\" not found, ..."} when the
+            // model hasn't been pulled.
+            if let Ok(body) = resp.into_string() {
+                if body.contains("not found") && body.contains("nomic-embed-text") {
+                    anyhow::bail!(
+                        "Ollama model 'nomic-embed-text' is not installed. \
+                         Run `ollama pull nomic-embed-text` and try again."
+                    );
+                }
+            }
+            // Otherwise fall through to legacy endpoint
         }
         Err(e) => return Err(e.into()),
     }
